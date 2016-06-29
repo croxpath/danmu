@@ -4,6 +4,7 @@ import uuid
 import time
 import hashlib
 import re
+import threading
 
 class DouyuProto():
     """"douyu message protocol"""
@@ -39,6 +40,9 @@ class douyu():
         self.gid = self.get_gid(login_reps)
         self.danmu_login(self.username,self.roomid)
         self.join_group(self.roomid,self.gid)
+        heartbeat = threading.Thread(target=self.keep_alive)
+        #heartbeat.setDaemon(True)
+        heartbeat.start()
         while True:
             msg = self.danmu_socket.recv(4000)
             print(self.get_danmu(msg))
@@ -62,7 +66,6 @@ class douyu():
         self.auth.sendall(msg)
         time.sleep(1)
         rev = self.auth.recv(4000)
-        #print(rev)
         return  rev
 
     def send_qrl(self):
@@ -77,7 +80,7 @@ class douyu():
         msg = DouyuProto(data).gen_msg()
         self.auth.sendall(msg)
         rev = self.auth.recv(4000)
-        print(rev)
+
 
     def danmu_login(self,username,roomid):
         data = "type@=loginreq/uername@=" + username + "/password@=1234567890123456/roomid@=" + roomid + "/"
@@ -112,7 +115,7 @@ class douyu():
     def get_danmu(self,msg):
         content = (msg[4:-1]).decode('utf8','ignore')
         content.replace('@S','/').replace("@A",'@')
-        print(content)
+        #print(content)
         if "type@=chatmsg" in content:
             name = re.search('\/nn@=(.+?)\/', content).group(1)
             txt = re.search('\/txt@=(.+?)\/', content).group(1)
@@ -120,6 +123,12 @@ class douyu():
         else:
             return None
 
+    def keep_alive(self):
+        while True:
+            self.login_keep_alive()
+            self.danmu_keep_alive()
+            time.sleep(40)
+
 
 if __name__ == "__main__":
-    douyu("119.90.49.92",8057,"319721").start()
+    douyu("119.90.49.92",8057,"56040").start()
